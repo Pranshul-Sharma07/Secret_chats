@@ -34,17 +34,17 @@ app.get("/admin/messages",adminOnly,(req,res)=>res.json(readMessages().sort((a,b
 
 let nextId=readMessages().reduce((m,x)=>Math.max(m,Number(x.id)||0),0)+1;
 io.on("connection",socket=>{
- socket.on("join-room",({room,sender})=>{
-   room=String(room||"").trim().toUpperCase();sender=String(sender||"Guest").slice(0,30);
+ socket.on("join-room",({room,sender,senderId})=>{
+   room=String(room||"").trim().toUpperCase();sender=String(sender||"Guest").slice(0,30);senderId=String(senderId||"").slice(0,80);
    if(room.length<4||room.length>80)return socket.emit("join-error","Invalid code.");
-   socket.data.room=room;socket.data.sender=sender;socket.join(room);
+   socket.data.room=room;socket.data.sender=sender;socket.data.senderId=senderId;socket.join(room);
    socket.emit("history",readMessages().filter(x=>x.room===room).slice(-200));
    io.to(room).emit("presence",{online:io.sockets.adapter.rooms.get(room)?.size||1});
  });
  socket.on("message",m=>{
-   const room=socket.data.room,sender=socket.data.sender;
+   const room=socket.data.room,sender=socket.data.sender,senderId=socket.data.senderId;
    if(!room||!m||!["text","image","video"].includes(m.type))return;
-   const item={id:nextId++,room,sender,type:m.type,
+   const item={id:nextId++,room,sender,senderId,type:m.type,
      text:typeof m.text==="string"?m.text.slice(0,5000):null,
      data_url:typeof m.data_url==="string"?m.data_url:null,
      created_at:new Date().toISOString()};
