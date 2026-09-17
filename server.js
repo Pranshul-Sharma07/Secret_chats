@@ -51,7 +51,13 @@ io.on("connection",socket=>{
    const all=readMessages();all.push(item);writeMessages(all);
    io.to(room).emit("message",item);
  });
- socket.on("typing",()=>{if(socket.data.room)socket.to(socket.data.room).emit("typing")});
+ socket.on("typing",()=>{
+   if(!socket.data.room)return;
+   const now=Date.now();
+   if(socket.data.lastTyping&&now-socket.data.lastTyping<700)return;
+   socket.data.lastTyping=now;
+   socket.to(socket.data.room).emit("typing",{sender:socket.data.sender});
+ });
  socket.on("disconnect",()=>{if(socket.data.room)io.to(socket.data.room).emit("presence",{online:io.sockets.adapter.rooms.get(socket.data.room)?.size||0})});
 });
 const PORT=process.env.PORT||3000;
