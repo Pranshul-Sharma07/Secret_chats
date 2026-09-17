@@ -55,4 +55,6 @@ io.on("connection",socket=>{
  socket.on("disconnect",()=>{if(socket.data.room)io.to(socket.data.room).emit("presence",{online:io.sockets.adapter.rooms.get(socket.data.room)?.size||0})});
 });
 const PORT=process.env.PORT||3000;
-server.listen(PORT,()=>console.log(`Secret Chats running on http://localhost:${PORT}`));
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Secret Chats running on port ${PORT}`);
+});

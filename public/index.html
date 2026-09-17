@@ -9,7 +9,23 @@
 <section id="chat"><header class="head"><div><div class="title">🔐 Secret Chats</div><div id="status" class="status">Connecting…</div></div><button class="btn" onclick="location.reload()">Leave</button></header><div id="msgs" class="msgs"></div><form id="composer" class="composer"><button type="button" class="ico" id="photoBtn">📷</button><button type="button" class="ico" id="videoBtn">🎥</button><input id="text" placeholder="Type a message…"><button class="send">➤</button><input id="photo" type="file" accept="image/*" hidden><input id="video" type="file" accept="video/*" hidden></form></section>
 <section id="admin" class="screen"><div class="card"><div class="logo">🛡️ Chat Archive</div><div class="sub">Admin-only archive of stored messages.</div><input id="apass" type="password" placeholder="Admin password"><button class="primary" id="alogin">Open Archive</button><div id="archive"></div></div></section>
 <script src="/socket.io/socket.io.js"></script><script>
-const $=x=>document.getElementById(x),socket=io();let code="",name="Guest";
+const $ = x => document.getElementById(x);
+  const socket = io({
+    transports: ["websocket", "polling"],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error("Socket connection error:", err.message);
+    $("status").textContent = "Connection error";
+  });
+let code="",name="Guest";
+const senderId=localStorage.getItem("secretChatsSenderId")||crypto.randomUUID();
+localStorage.setItem("secretChatsSenderId",senderId);
+socket.on("connect",()=>{ $("status").textContent="Connected"; });
+socket.on("disconnect",()=>{ $("status").textContent="Connecting…"; });
 function roomHash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(16)}
 function render(m){const e=document.createElement("div");e.className="msg"+(m.senderId===senderId?" me":"");if(m.type==="text")e.textContent=m.text;else{const x=document.createElement(m.type==="image"?"img":"video");x.src=m.data_url;if(m.type==="video")x.controls=true;e.append(x)}const t=document.createElement("div");t.className="time";t.textContent=new Date(m.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});e.append(t);$("msgs").append(e);$("msgs").scrollTop=$("msgs").scrollHeight}
 $("joinBtn").onclick=()=>{code=$("code").value.trim().toUpperCase();if(code.length<4)return alert("Code must be at least 4 characters.");$("join").style.display="none";$("chat").style.display="flex";socket.emit("join-room",{room:roomHash(code),sender:name,senderId})};
