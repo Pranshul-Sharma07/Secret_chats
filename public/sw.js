@@ -1,4 +1,4 @@
-const CACHE="secret-chats-v14-8";
+const CACHE="secret-chats-v14-9";
 self.addEventListener("install",event=>{self.skipWaiting();});
 self.addEventListener("activate",event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener("fetch",event=>{
