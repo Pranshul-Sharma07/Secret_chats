@@ -43,6 +43,7 @@ body.light{background:#f3f5f8;color:#15181d}body.light #chat,body.light #admin{b
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
 
+.topicCard{padding:10px 12px;border-radius:14px;background:#20252d;border:1px solid #343b46;line-height:1.5}.topicCard b{display:block;margin-bottom:5px}.topicCard ol{margin:0;padding-left:20px}.topicCard li{margin:3px 0}.topicHint{font-size:10px;opacity:.55;margin-top:7px}
 </style></head><body>
 <section id="join" class="screen"><div class="card"><div class="logo">🔐 Secret Chats</div><div class="sub">Enter the same code on both devices. No account required.</div><label>NAME</label><input id="name" maxlength="30" placeholder="Your name"><div class="field"><label>CODE</label><input id="code" maxlength="80" placeholder="Enter secret code"></div><button class="primary" id="joinBtn">Enter Secret Chat</button><div class="made">Made by Pranshul Sharma</div></div></section>
 <section id="chat"><header class="head"><div class="headLeft"><div class="avatar">🔐</div><div><div class="title">Secret Chats</div><div id="status" class="status">Connecting… <span id="quality" class="quality"></span></div></div></div><div class="headBtns"><button class="btn infoOnly" id="searchBtn">🔎</button><button class="btn infoOnly" id="infoBtn">ⓘ</button><button class="btn" id="leaveBtn">Leave</button></div><div class="searchBar" id="searchBar"><input id="searchInput" placeholder="Search messages…"><div class="searchCount" id="searchCount"></div></div></header>
@@ -55,6 +56,28 @@ body.light{background:#f3f5f8;color:#15181d}body.light #chat,body.light #admin{b
 <div class="modal" id="infoModal"><div class="modalBox"><button class="btn" id="closeInfo">Close</button><h2>🔐 Chat Info</h2><div class="infoGrid"><div class="infoItem"><small>Members</small><br><b id="membersInfo">2</b></div><div class="infoItem"><small>Messages</small><br><b id="messagesInfo">0</b></div><div class="infoItem"><small>Media</small><br><b id="mediaInfo">0</b></div><div class="infoItem"><small>Created</small><br><b id="createdInfo">—</b></div></div><h3>🏆 Achievements</h3><div id="achievements"></div><h3>⚙️ Appearance</h3><div class="settingsRow"><button id="darkBtn">🌙 Dark</button><button id="lightBtn">☀️ Light</button><button id="wall1">Wallpaper 1</button><button id="wall2">Wallpaper 2</button><button id="wall3">Wallpaper 3</button><button id="wall4">Wallpaper 4</button><button id="wall5">Wallpaper 5</button></div><p style="color:#89919e;font-size:12px">Chat settings are saved on this device.</p></div></div>
 <script src="/socket.io/socket.io.js"></script><script>
 const $=x=>document.getElementById(x);const socket=io({transports:["websocket","polling"],reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000});
+const topicPool=[
+"Agar abhi free trip mile to kaha jaoge?",
+"Tumhari life ka sabse funny moment kaunsa tha?",
+"Aajkal kaunsa song ya artist repeat par hai?",
+"Agar 1 din ke liye koi superpower mile to kya choose karoge?",
+"Bachpan ki kaunsi memory abhi bhi yaad aate hi smile kara deti hai?",
+"Agar ₹10,000 sirf fun par kharch karne ho to kya karoge?",
+"Kaunsi movie/series baar-baar dekh sakte ho?",
+"Agar ek naya rule duniya me add karna ho to kya hoga?",
+"School/college ka sabse random incident kya hua tha?",
+"Agar apni dream room design karo to usme kya-kya hoga?",
+"Kaunsa food tum bina bore hue baar-baar kha sakte ho?",
+"Agar kal phone band rakhna pade to din kaise spend karoge?",
+"Kis skill ko instantly master karna chahoge?",
+"Agar time machine mile to past ya future? Kyun?",
+"Ek aisi cheez jo log tumhare baare me usually galat samajhte hain?",
+"Agar apni life par movie bane to title kya hoga?",
+"Koi embarrassing moment jo ab funny lagta hai?",
+"Agar ek business start karna ho to kya start karoge?",
+"Tumhare hisaab se perfect weekend kaisa hota hai?",
+"Aaj ki generation ki sabse funny habit kya hai?"
+];
 let achievementCount=0;let code="",name=localStorage.getItem("secretChatsName")||"",onlineCount=0,lastDate="",replyTarget=null,menuTarget=null,typingTimer=null,lastTypingSent=0,atBottom=true,idleTimer=null,idlePhraseIndex=0,qualityTimer=null,qualityPending=false,qualityStart=0,typingStatusActive=false;
 let allMessagesCache=[],visibleStart=0;
 const INITIAL_VISIBLE_MESSAGES=120,OLDER_BATCH=100;
@@ -71,8 +94,8 @@ function statusHTML(m){if(m.senderId!==senderId)return"";return `<span class="ti
 function linkPreview(text){const match=(text||"").match(/https?:\/\/[^\s<]+/i);if(!match)return null;const url=match[0].replace(/[),.!?]+$/g,"");try{const u=new URL(url);const a=document.createElement("a");a.className="linkPreview";a.href=u.href;a.target="_blank";a.rel="noopener noreferrer";const b=document.createElement("b");b.textContent=u.hostname.replace(/^www\./,"");const sp=document.createElement("span");sp.textContent=url;a.append(b,sp);return a}catch{return null}}
 function removeMessageNodes(id){document.querySelectorAll(`#msgs .msg[data-id="${CSS.escape(String(id))}"]`).forEach(n=>n.remove())}
 function render(m,force=false){
+  if(!force && m._rendered)return;
   removeMessageNodes(m.id);
-  if(m._rendered&&!force)return;
   const d=dateLabel(m.created_at);
   if(d!==lastDate){const sep=document.createElement("div");sep.className="dateSep";sep.textContent=d;$("msgs").append(sep);lastDate=d}
   const e=document.createElement("div");e.className="msg"+(m.senderId===senderId?" me":"");e.dataset.id=m.id;
@@ -93,7 +116,11 @@ function render(m,force=false){
 }
 function updateAchievements(){const ms=[{n:1,t:"First message 🎉"},{n:10,t:"10 messages 💬"},{n:50,t:"50 messages 🔥"},{n:100,t:"100 messages 🏆"},{n:500,t:"500 messages 👑"}];$("achievements").innerHTML=ms.filter(x=>achievementCount>=x.n).map(x=>`<div class="achievement">🏆 <span>${x.t}</span></div>`).join("")||`<div class="tiny">Send messages to unlock achievements.</div>`}
 function renderAll(a){allMessagesCache=[...a].sort((x,y)=>Number(x.id)-Number(y.id));visibleStart=Math.max(0,allMessagesCache.length-INITIAL_VISIBLE_MESSAGES);renderVisibleMessages(true);updateInfo(allMessagesCache);updateAchievements();updatePinned(allMessagesCache)}
-function renderVisibleMessages(scrollToBottom=false){$("msgs").innerHTML="";lastDate="";const seen=new Set();allMessagesCache.slice(visibleStart).forEach(x=>{const id=String(x.id);if(seen.has(id))return;seen.add(id);render(x)});const older=visibleStart>0;$("olderBar").style.display=older?"block":"none";$("loadOlderBtn").textContent=older?`↑ Load older messages (${visibleStart})`:"↑ Load older messages";applySearch();if(scrollToBottom)scrollBottom()}
+function makeTopics(){const a=[...topicPool];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,5)}
+function topicHtml(topics){return `<div class="topicCard"><b>💬 Chalo baat shuru karte hain!</b><ol>${topics.map(x=>`<li>${x}</li>`).join("")}</ol><div class="topicHint">Next 5 topics ke liye /topic phir se bhejo.</div></div>`}
+function showTopicMessage(){const topics=makeTopics();const n=document.createElement("div");n.className="msg me topicGenerated";n.innerHTML=topicHtml(topics)+`<div class="time">now</div>`;$("msgs").append(n);scrollBottom()}
+
+function renderVisibleMessages(scrollToBottom=false){$("msgs").innerHTML="";lastDate="";const seen=new Set();allMessagesCache.slice(visibleStart).forEach(x=>{const id=String(x.id);if(seen.has(id))return;seen.add(id);render(x,true)});const older=visibleStart>0;$("olderBar").style.display=older?"block":"none";$("loadOlderBtn").textContent=older?`↑ Load older messages (${visibleStart})`:"↑ Load older messages";applySearch();if(scrollToBottom)scrollBottom()}
 function loadOlderMessages(){if(visibleStart<=0)return;const oldHeight=$("msgs").scrollHeight,oldTop=$("msgs").scrollTop;visibleStart=Math.max(0,visibleStart-OLDER_BATCH);renderVisibleMessages(false);$("msgs").scrollTop=oldTop+($("msgs").scrollHeight-oldHeight)}
 
 function getMessages(){return [...$("msgs").querySelectorAll(".msg")].map(e=>e.dataset.id)}
@@ -114,7 +141,7 @@ function resetIdle(){socket.emit("activity-status",{status:"active"});clearTimeo
 $("text").addEventListener("input",()=>{saveDraft();const now=Date.now();if(getText().trim()&&now-lastTypingSent>900){socket.emit("typing");lastTypingSent=now}clearTimeout(typingTimer);typingTimer=setTimeout(()=>lastTypingSent=0,1200)});
 
 $("text").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("composer").requestSubmit()}});
-$("composer").onsubmit=e=>{e.preventDefault();const t=getText().trim();if(!t)return;socket.emit("message",{type:"text",text:t,replyTo:replyTarget?{id:replyTarget.id,sender:replyTarget.sender,text:replyTarget.text,type:replyTarget.type}:null});celebrate(t);setText("");saveDraft();$("text").setAttribute("data-placeholder","Type a message…");cancelReply();lastTypingSent=0;clearTimeout(typingTimer)};
+$("composer").onsubmit=e=>{e.preventDefault();const t=getText().trim();if(!t)return;if(/^\/topic$/i.test(t)){showTopicMessage();setText("");saveDraft();$("text").setAttribute("data-placeholder","Type a message…");cancelReply();lastTypingSent=0;clearTimeout(typingTimer);return;}socket.emit("message",{type:"text",text:t,replyTo:replyTarget?{id:replyTarget.id,sender:replyTarget.sender,text:replyTarget.text,type:replyTarget.type}:null});celebrate(t);setText("");saveDraft();$("text").setAttribute("data-placeholder","Type a message…");cancelReply();lastTypingSent=0;clearTimeout(typingTimer)};
 function fileSend(input,type){const f=input.files[0];input.value="";if(!f)return;if(f.size>20*1024*1024)return alert("Maximum 20 MB.");const r=new FileReader();r.onload=()=>socket.emit("message",{type,data_url:r.result,replyTo:replyTarget?{id:replyTarget.id,sender:replyTarget.sender,text:replyTarget.text,type:replyTarget.type}:null});r.readAsDataURL(f)}
 $("attachBtn").onclick=()=>{$("attachMenu").querySelectorAll("button").forEach(b=>{if(/GIF/i.test(b.textContent))b.remove()});$("attachMenu").style.display=$("attachMenu").style.display==="block"?"none":"block"};$("photoMenu").onclick=()=>{$("attachMenu").style.display="none";$("photo").click()};$("videoMenu").onclick=()=>{$("attachMenu").style.display="none";$("video").click()};$("cameraMenu").onclick=()=>{$("attachMenu").style.display="none";$("photo").setAttribute("capture","environment");$("photo").click()};$("photo").onchange=()=>fileSend($("photo"),"image");$("gifFile").onchange=()=>fileSend($("gifFile"),"gif");$("video").onchange=()=>fileSend($("video"),"video");
 function manageReactionPack(){const current=JSON.parse(localStorage.getItem("scReactionPack")||"null")||defaultPack;const raw=prompt("Enter emojis separated by spaces for your quick reaction pack:",current.join(" "));if(raw===null)return;const unique=[...new Set(Array.from(raw).filter(ch=>ch.trim()))].slice(0,24);if(unique.length)localStorage.setItem("scReactionPack",JSON.stringify(unique));else localStorage.removeItem("scReactionPack");alert("Reaction pack saved! Open React again.")}function updatePinned(a){const pinned=a.filter(x=>x.pinned);const bar=$("pinnedBar");if(!pinned.length){bar.style.display="none";return}const m=pinned[pinned.length-1];bar.style.display="block";$("pinnedText").textContent=m.type==="text"?(m.text||""):"Attachment";bar.onclick=()=>{const e=$("msgs").querySelector(`[data-id="${m.id}"]`);e?.scrollIntoView({behavior:"smooth",block:"center"})}}function applySearch(){const q=$("searchInput").value.trim().toLowerCase();let n=0;document.querySelectorAll(".msg").forEach(e=>{const body=e.querySelector(".bodyText");if(!body){e.style.display=q?"none":"";return}const text=body.textContent||"";if(!q){body.textContent=text;e.style.display="";return}const idx=text.toLowerCase().indexOf(q);e.style.display=idx>=0?"":"none";if(idx>=0){n++;const before=text.slice(0,idx),hit=text.slice(idx,idx+q.length),after=text.slice(idx+q.length);body.innerHTML="";body.append(document.createTextNode(before));const mark=document.createElement("mark");mark.className="searchHit";mark.textContent=hit;body.append(mark);body.append(document.createTextNode(after))}});$("searchCount").textContent=q?`${n} message${n===1?'':'s'} found`:""}function showGifModal(){const modal=$("gifModal");modal.style.display="grid";renderGifPack($("gifSearch").value)}function renderGifPack(query=""){const grid=$("gifGrid");grid.innerHTML="";const gifs=["https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif","https://media.giphy.com/media/3o7TKMt1VVNkHV2PaE/giphy.gif","https://media.giphy.com/media/111ebonMs90YLu/giphy.gif","https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif","https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif","https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif"];gifs.forEach(u=>{const im=document.createElement("img");im.src=u;im.onclick=()=>{socket.emit("message",{type:"gif",data_url:u});$("gifModal").style.display="none"};grid.append(im)})}$("gifBtn").onclick=showGifModal;$("uploadGifBtn").onclick=()=>$("gifFile").click();$("closeGif").onclick=()=>$("gifModal").style.display="none";$("gifSearch").oninput=()=>renderGifPack($("gifSearch").value);
