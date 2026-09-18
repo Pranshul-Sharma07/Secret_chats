@@ -8,8 +8,7 @@ body.light{background:#f3f5f8;color:#15181d}body.light #chat,body.light #admin{b
 @media(max-width:600px){.msg{max-width:84%}.head{height:66px}.title{font-size:15px}.searchBar{right:52px;width:55vw}.headBtns .btn.infoOnly{display:none}}
 
 /* V14.4 — subtle UI motion */
-@keyframes scBubbleIn{
-  from{opacity:0;transform:translateY(5px) scale(.985)}
+@keyframes scBubbleIn{from{opacity:0;transform:translateY(5px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
   to{opacity:1;transform:translateY(0) scale(1)}
 }
 @keyframes scSoftPulse{
@@ -25,7 +24,7 @@ body.light{background:#f3f5f8;color:#15181d}body.light #chat,body.light #admin{b
   0%,60%,100%{transform:translateY(0);opacity:.55}
   30%{transform:translateY(-2px);opacity:1}
 }
-.msg{animation:scBubbleIn .22s ease-out both}
+.msg.scNew{animation:scBubbleIn .22s ease-out both}
 .btn,.ico,.send{transition:transform .16s ease,opacity .16s ease,background-color .18s ease,border-color .18s ease}
 .btn:hover,.ico:hover{transform:translateY(-1px)}
 .send:hover{transform:scale(1.035)}
@@ -93,7 +92,7 @@ function dateLabel(d){const x=new Date(d),now=new Date();const a=new Date(now.ge
 function statusHTML(m){if(m.senderId!==senderId)return"";return `<span class="ticks ${m.status==='read'?'read':''}">${m.status==='sent'?"✓":"✓✓"}</span>`}
 function linkPreview(text){const match=(text||"").match(/https?:\/\/[^\s<]+/i);if(!match)return null;const url=match[0].replace(/[),.!?]+$/g,"");try{const u=new URL(url);const a=document.createElement("a");a.className="linkPreview";a.href=u.href;a.target="_blank";a.rel="noopener noreferrer";const b=document.createElement("b");b.textContent=u.hostname.replace(/^www\./,"");const sp=document.createElement("span");sp.textContent=url;a.append(b,sp);return a}catch{return null}}
 function removeMessageNodes(id){document.querySelectorAll(`#msgs .msg[data-id="${CSS.escape(String(id))}"]`).forEach(n=>n.remove())}
-function render(m,force=false){
+function render(m,force=false,animate=false){
   if(!force && m._rendered)return;
   removeMessageNodes(m.id);
   const d=dateLabel(m.created_at);
@@ -120,7 +119,7 @@ function makeTopics(){const a=[...topicPool];for(let i=a.length-1;i>0;i--){const
 function topicHtml(topics){return `<div class="topicCard"><b>💬 Chalo baat shuru karte hain!</b><ol>${topics.map(x=>`<li>${x}</li>`).join("")}</ol><div class="topicHint">Next 5 topics ke liye /topic phir se bhejo.</div></div>`}
 function showTopicMessage(){const topics=makeTopics();const n=document.createElement("div");n.className="msg me topicGenerated";n.innerHTML=topicHtml(topics)+`<div class="time">now</div>`;$("msgs").append(n);scrollBottom()}
 
-function renderVisibleMessages(scrollToBottom=false){$("msgs").innerHTML="";lastDate="";const seen=new Set();allMessagesCache.slice(visibleStart).forEach(x=>{const id=String(x.id);if(seen.has(id))return;seen.add(id);render(x,true)});const older=visibleStart>0;$("olderBar").style.display=older?"block":"none";$("loadOlderBtn").textContent=older?`↑ Load older messages (${visibleStart})`:"↑ Load older messages";applySearch();if(scrollToBottom)scrollBottom()}
+function renderVisibleMessages(scrollToBottom=false){$("msgs").innerHTML="";lastDate="";const seen=new Set();allMessagesCache.slice(visibleStart).forEach(x=>{const id=String(x.id);if(seen.has(id))return;seen.add(id);render(x,true,false)});const older=visibleStart>0;$("olderBar").style.display=older?"block":"none";$("loadOlderBtn").textContent=older?`↑ Load older messages (${visibleStart})`:"↑ Load older messages";applySearch();if(scrollToBottom)scrollBottom()}
 function loadOlderMessages(){if(visibleStart<=0)return;const oldHeight=$("msgs").scrollHeight,oldTop=$("msgs").scrollTop;visibleStart=Math.max(0,visibleStart-OLDER_BATCH);renderVisibleMessages(false);$("msgs").scrollTop=oldTop+($("msgs").scrollHeight-oldHeight)}
 
 function getMessages(){return [...$("msgs").querySelectorAll(".msg")].map(e=>e.dataset.id)}
@@ -135,7 +134,7 @@ function openMedia(m){$("mediaDownload").href=m.data_url;$("mediaDownload").down
 $("joinBtn").onclick=()=>{name=$("name").value.trim().slice(0,30);code=$("code").value.trim().toUpperCase();if(!name)return alert("Please enter your name.");if(code.length<4)return alert("Code must be at least 4 characters.");localStorage.setItem("secretChatsName",name);$("join").style.display="none";$("chat").style.display="flex";socket.emit("join-room",{room:roomHash(code),sender:name,senderId});loadDraft();resetIdle()};$("leaveBtn").onclick=()=>location.reload();
 socket.on("history",a=>{renderAll(a);socket.emit("read-room")});socket.on("message",m=>{allMessagesCache.push(m);visibleStart=Math.max(0,allMessagesCache.length-INITIAL_VISIBLE_MESSAGES);renderVisibleMessages(atBottom);if(m.senderId===senderId){achievementCount++;updateAchievements()}if(m.senderId!==senderId&&m.type==="text")celebrate(m.text);if(atBottom)scrollBottom();socket.emit("read-room")});socket.on("presence",x=>{onlineCount=Number(x.online)||0;setPresence()});socket.on("typing",({sender}={})=>{if($("chat").style.display!=="flex")return;clearTimeout(window._typingStatusTimer);if(!typingStatusActive){const phrase=typingPhrases[Math.floor(Math.random()*typingPhrases.length)];$("status").textContent=`${sender||"Someone"} is ${phrase}`;$("status").classList.add("typing");typingStatusActive=true}window._typingStatusTimer=setTimeout(()=>{typingStatusActive=false;setPresence()},3500)});socket.on("statuses-updated",()=>{socket.emit("read-room")});socket.on("activity-status",({sender,status}={})=>{if(status!=="idle"){setPresence();return}const phrase=idlePhrases[idlePhraseIndex++%idlePhrases.length];$("status").textContent=`${sender||"Someone"}: ${phrase}`;$("status").classList.add("typing");clearTimeout(window._activityTimer);window._activityTimer=setTimeout(setPresence,7000)});
 socket.on("reaction-updated",({id,reactions})=>{const e=$("msgs").querySelector(`[data-id="${id}"]`);if(!e)return;const old=e.querySelector(".reactions");old?.remove();if(reactions&&Object.keys(reactions).length){const rr=document.createElement("div");rr.className="reactions";Object.entries(reactions).forEach(([emoji,users])=>{const b=document.createElement("button");b.className="reaction";b.textContent=`${emoji} ${users.length}`;b.onclick=ev=>{ev.stopPropagation();socket.emit("toggle-reaction",{id,emoji})};rr.append(b)});e.insertBefore(rr,e.querySelector(".time"))}});
-socket.on("message-meta",({id,starred,pinned})=>{const e=$("msgs").querySelector(`[data-id="${id}"]`);if(e){e.querySelector(".star")?.remove();e.querySelector(".pin")?.remove();if(starred)e.insertAdjacentHTML("afterbegin",'<span class="star">⭐</span>');if(pinned)e.insertAdjacentHTML("afterbegin",'<span class="pin">📌</span>')}});socket.on("message-deleted",({id})=>{const e=$("msgs").querySelector(`[data-id="${id}"]`);const time=e?.querySelector(".time")?.innerHTML||"";removeMessageNodes(id);const n=document.createElement("div");n.className="msg";n.dataset.id=id;const q=document.createElement("div");q.className="deleted";q.textContent="This message was deleted";n.append(q);const t=document.createElement("div");t.className="time";t.innerHTML=time;n.append(t);$("msgs").append(n);});socket.on("join-error",x=>alert(x));
+socket.on("message-meta",({id,starred,pinned})=>{const e=$("msgs").querySelector(`[data-id="${id}"]`);if(e){e.querySelector(".star")?.remove();e.querySelector(".pin")?.remove();if(starred)e.insertAdjacentHTML("afterbegin",'<span class="star">⭐</span>');if(pinned)e.insertAdjacentHTML("afterbegin",'<span class="pin">📌</span>')}});socket.on("message-deleted",({id})=>{const e=$("msgs").querySelector(`[data-id="${id}"]`);const time=e?.querySelector(".time")?.innerHTML||"";removeMessageNodes(id);const n=document.createElement("div");n.className="msg";n.dataset.id=id;const q=document.createElement("div");q.className="deleted";q.textContent="This message was deleted";n.append(q);const t=document.createElement("div");t.className="time";t.innerHTML=time;n.append(t);$("msgs").append(n);if(animate)n.classList.add("scNew");});socket.on("join-error",x=>alert(x));
 function resetIdle(){socket.emit("activity-status",{status:"active"});clearTimeout(idleTimer);idleTimer=setTimeout(()=>socket.emit("activity-status",{status:"idle"}),30000)}
 ["mousemove","keydown","touchstart","click"].forEach(ev=>document.addEventListener(ev,resetIdle,{passive:true}));
 $("text").addEventListener("input",()=>{saveDraft();const now=Date.now();if(getText().trim()&&now-lastTypingSent>900){socket.emit("typing");lastTypingSent=now}clearTimeout(typingTimer);typingTimer=setTimeout(()=>lastTypingSent=0,1200)});
