@@ -13,8 +13,17 @@ function readMessages(){try{return JSON.parse(fs.readFileSync(DB,"utf8")||"[]")}
 function writeMessages(a){fs.writeFileSync(DB,JSON.stringify(a),"utf8")}
 if(!process.env.ADMIN_PASSWORD||process.env.ADMIN_PASSWORD==="CHANGE_THIS_TO_YOUR_PRIVATE_PASSWORD") console.warn("WARNING: Set ADMIN_PASSWORD in .env before production use.");
 app.use(express.json({limit:"30mb"}));
+app.use((req,res,next)=>{if(req.path==="/"||req.path.endsWith(".html")){res.set("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");res.set("Pragma","no-cache");res.set("Expires","0")}next()});
 app.use(session({secret:process.env.SESSION_SECRET||"dev-secret-change-me",resave:false,saveUninitialized:false,cookie:{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",maxAge:24*60*60*1000}}));
-app.use(express.static(path.join(__dirname,"public")));
+app.use((req,res,next)=>{
+  if(req.path==="/" || req.path.endsWith(".html") || req.path==="/sw.js"){
+    res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma","no-cache");
+    res.setHeader("Expires","0");
+  }
+  next();
+});
+app.use(express.static(path.join(__dirname,"public"),{etag:false,lastModified:false}));
 function adminOnly(req,res,next){if(req.session.admin)return next();res.status(401).json({error:"Unauthorized"})}
 app.post("/admin/login",(req,res)=>{const ok=typeof req.body.password==="string"&&req.body.password===process.env.ADMIN_PASSWORD;if(!ok)return res.status(401).json({error:"Wrong password"});req.session.admin=true;res.json({ok:true})});
 app.post("/admin/logout",(req,res)=>req.session.destroy(()=>res.json({ok:true})));
